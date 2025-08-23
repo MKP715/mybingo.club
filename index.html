@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>myBingo.club</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: 210 40% 96%; --bg-card: 255 100% 100%; --bg-alt: 210 40% 98%;
+            --bg-alt-2: 210 40% 91%; --text-main: 222 47% 11%; --text-alt: 220 13% 47%;
+            --text-muted: 220 9% 56%; --border-color: 220 13% 83%;
+        }
+        [data-theme="dark"] {
+            --bg-main: 222 47% 11%; --bg-card: 222 47% 15%; --bg-alt: 220 14% 20%;
+            --bg-alt-2: 220 14% 25%; --text-main: 210 40% 98%; --text-alt: 215 20% 65%;
+            --text-muted: 217 19% 54%; --border-color: 220 13% 30%;
+        }
+        [data-theme="retro"] {
+            --bg-main: 39 31% 89%; --bg-card: 35 56% 96%; --bg-alt: 35 56% 94%;
+            --bg-alt-2: 39 31% 85%; --text-main: 30 64% 25%; --text-alt: 30 40% 35%;
+            --text-muted: 30 30% 45%; --border-color: 39 31% 75%;
+        }
+        html.fullscreen { overflow: hidden; }
+        body {
+            font-family: 'Inter', sans-serif; background-color: hsl(var(--bg-main));
+            color: hsl(var(--text-main)); transition: background-color 0.3s, color 0.3s;
+        }
+        .card { background-color: hsl(var(--bg-card)); } .card-alt { background-color: hsl(var(--bg-alt)); }
+        .card-alt-2 { background-color: hsl(var(--bg-alt-2)); } .text-alt { color: hsl(var(--text-alt)); }
+        .text-muted { color: hsl(var(--text-muted)); } .border-default { border-color: hsl(var(--border-color)); }
+
+        .tracking-board { display: flex; flex-direction: column; gap: 0.5rem; }
+        .board-row { display: grid; grid-template-columns: 40px 1fr; gap: 0.75rem; align-items: center; }
+        .board-row-header { font-weight: 900; font-size: 2.25rem; text-align: center; }
+        .board-row-numbers { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 0.375rem; }
+        .board-cell {
+            aspect-ratio: 1 / 1; transition: all 0.3s ease; user-select: none; display: flex;
+            align-items: center; justify-content: center; font-size: 0.875rem; sm:font-size: 1rem;
+            font-weight: 600; border-radius: 0.375rem;
+        }
+        .board-cell.called { transform: scale(1.05); color: white; box-shadow: 0 4px 14px 0 rgba(0, 118, 255, 0.39); }
+        .board-cell.col-b.called { background-color: #3b82f6; } .board-cell.col-i.called { background-color: #ef4444; }
+        .board-cell.col-n.called { background-color: #eab308; } .board-cell.col-g.called { background-color: #22c55e; }
+        .board-cell.col-o.called { background-color: #8b5cf6; }
+        .manual-mode .board-cell:not(.called) { cursor: pointer; }
+        .manual-mode .board-cell:not(.called):hover { transform: scale(1.1); background-color: hsla(var(--text-main), 0.1); }
+
+        .called-number-display { transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55), opacity 0.3s ease; }
+        .number-enter { transform: scale(0.5) translateY(-20px); opacity: 0; }
+        .number-active { transform: scale(1) translateY(0); opacity: 1; }
+        .bingo-letter { font-weight: 900; font-size: 2.5rem; line-height: 1; text-shadow: 2px 2px 4px rgba(0,0,0,0.1); }
+        
+        .modal { transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out; }
+        .modal.hidden { opacity: 0; transform: scale(0.95); pointer-events: none; }
+        .settings-overlay { backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+
+        .toggle-bg:after { content: ''; position: absolute; top: 2px; left: 2px; background: white; border-radius: 9999px; height: 1.25rem; width: 1.25rem; transition: transform 0.2s; }
+        input:checked + .toggle-bg:after { transform: translateX(100%); }
+        input:checked + .toggle-bg { background-color: #22c55e; }
+
+        /* Confetti */
+        #confetti-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
+        .confetti { position: absolute; width: 10px; height: 10px; background-color: #f00; opacity: 0; animation: fall 4s ease-out forwards; }
+        @keyframes fall {
+            0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+        }
+        
+        #speed-bingo-timer-circle {
+            stroke-dasharray: 283;
+            stroke-dashoffset: 283;
+            transition: stroke-dashoffset 1s linear;
+        }
+        
+        #pattern-display .pattern-cell {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border-radius: 2px;
+            background-color: hsl(var(--bg-alt-2));
+            transition: all 0.2s;
+        }
+        #pattern-display .pattern-cell.active {
+            background-color: #3b82f6; /* Blue-500 */
+            transform: scale(1.1);
+        }
+        #pattern-display .pattern-cell.free {
+            background-color: #10b981; /* Emerald-500 */
+        }
+    </style>
+</head>
+<body class="min-h-screen p-2 sm:p-4">
+    <div id="confetti-container"></div>
+    <!-- --- UPDATED: Removed card, shadow, rounded corners, and padding from this main container --- -->
+    <div class="w-full max-w-screen-2xl mx-auto flex flex-col h-[calc(100vh-2rem)] sm:h-[calc(100vh-4rem)]">
+        <header class="flex justify-between items-center mb-4">
+            <button id="fullscreen-btn" title="Toggle Fullscreen (F11)" class="px-3 py-1 rounded-lg hover:bg-slate-500/20 transition font-mono text-sm font-bold border-default border">
+                F11
+            </button>
+            <div class="text-center">
+                <div class="flex justify-center items-center gap-2 sm:gap-3">
+                    <span class="bingo-letter text-gray-700 dark:text-gray-300">Lets Play </span>
+                    <span class="bingo-letter text-blue-500">B</span> <span class="bingo-letter text-red-500">I</span>
+                    <span class="bingo-letter text-yellow-500">N</span> <span class="bingo-letter text-green-500">G</span>
+                    <span class="bingo-letter text-purple-500">O</span>
+                </div>
+            </div>
+            <button id="settings-btn" title="Settings" class="p-2 rounded-full hover:bg-slate-500/20 transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
+        </header>
+
+        <main class="grid grid-cols-12 gap-6 flex-grow min-h-0">
+            <!-- Left Side Panel -->
+            <div class="col-span-12 lg:col-span-2 flex flex-col gap-6">
+                <div class="card-alt p-4 rounded-xl">
+                    <h2 class="text-base font-bold mb-2">Last 5 Numbers</h2>
+                    <div id="last-numbers-display" class="flex flex-wrap justify-center gap-2"></div>
+                </div>
+                <div id="speed-bingo-panel" class="card-alt p-4 rounded-xl hidden">
+                    <h2 class="text-base font-bold mb-2 text-center">Speed Bingo</h2>
+                    <div class="flex flex-col items-center gap-3">
+                        <div id="speed-bingo-timer" class="relative w-24 h-24">
+                            <svg class="w-full h-full" viewBox="0 0 100 100">
+                                <circle class="text-slate-300" stroke-width="10" stroke="currentColor" fill="transparent" r="45" cx="50" cy="50" />
+                                <circle id="speed-bingo-timer-circle" class="text-blue-500" stroke-width="10" stroke-linecap="round" stroke="currentColor" fill="transparent" r="45" cx="50" cy="50" style="transform: rotate(-90deg); transform-origin: 50% 50%;" />
+                            </svg>
+                            <span id="speed-bingo-timer-text" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-2xl font-bold"></span>
+                        </div>
+                        <button id="speed-bingo-play-pause" class="bg-green-500 hover:bg-green-600 text-white p-3 rounded-full transition transform hover:scale-110">
+                            <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+                        </button>
+                        <button id="verify-bingo-btn-speed" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition">Verify</button>
+                    </div>
+                </div>
+                <div class="card-alt p-4 rounded-xl">
+                    <h2 class="text-base font-bold mb-3 text-center">Winning Pattern</h2>
+                    <div id="pattern-display" class="grid grid-cols-5 gap-1 mx-auto w-24 h-24">
+                    </div>
+                </div>
+                 <div class="card-alt p-4 rounded-xl mt-auto">
+                    <h2 class="text-base font-bold mb-2">Game Stats</h2>
+                    <div id="fastest-bingo-display" class="text-center text-alt">No bingos yet.</div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-span-12 lg:col-span-8 flex flex-col gap-6 min-h-0">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="card-alt-2 p-4 rounded-xl text-center">
+                        <h2 class="text-md font-semibold text-alt mb-1">Last Number</h2>
+                        <div id="last-number-display" class="text-4xl font-bold h-20 flex items-center justify-center text-muted">-</div>
+                    </div>
+                    <div class="card-alt-2 p-4 rounded-xl text-center border-4 border-blue-500 shadow-lg">
+                        <h2 class="text-md font-semibold text-alt mb-1">Current Number</h2>
+                        <div id="called-number-display" class="called-number-display number-enter text-6xl font-bold h-20 flex items-center justify-center">-</div>
+                    </div>
+                    <div class="card-alt-2 p-4 rounded-xl text-center">
+                        <h2 class="text-md font-semibold text-alt mb-1">Total Called</h2>
+                        <div id="numbers-called-count" class="text-6xl font-bold h-20 flex items-center justify-center">0<span id="total-numbers-display" class="text-2xl font-medium text-muted">/75</span></div>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button id="call-number-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-lg shadow-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300 text-lg">Call Next Number</button>
+                    <button id="undo-btn" class="flex-shrink-0 bg-slate-500 hover:bg-slate-600 text-white font-bold p-3 rounded-lg shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed" disabled title="Undo Last Number">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l4-4m-4 4l4 4"></path></svg>
+                    </button>
+                </div>
+                <div id="tracking-board" class="tracking-board flex-grow overflow-y-auto"></div>
+            </div>
+            
+            <!-- Right Side Panel -->
+            <div class="col-span-12 lg:col-span-2 flex flex-col gap-6 min-h-0">
+                <div class="card-alt p-4 rounded-xl flex flex-col min-h-0">
+                    <h2 class="text-base font-bold mb-2">Players</h2>
+                    <div class="flex gap-2 mb-3">
+                        <input type="text" id="player-name-input" placeholder="Enter player name" class="w-full px-3 py-2 card border border-default rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button id="add-player-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 rounded-md transition">+</button>
+                    </div>
+                    <div class="flex gap-2 mb-3 text-sm">
+                        <label for="import-csv-btn" class="flex-1 text-center cursor-pointer bg-blue-500/20 hover:bg-blue-500/30 text-blue-700 dark:text-blue-300 font-semibold py-2 px-2 rounded-lg transition">Import CSV</label>
+                        <input type="file" id="import-csv-btn" class="hidden" accept=".csv,text/csv">
+                    </div>
+                    <ul id="player-list" class="space-y-2 overflow-y-auto flex-grow"></ul>
+                </div>
+                <div class="card-alt p-4 rounded-xl flex flex-col">
+                    <h2 class="text-base font-bold mb-2">Current Game Winners</h2>
+                    <ul id="winner-list" class="space-y-2 mb-3"></ul>
+                    <h3 class="text-sm font-bold mb-2 border-t border-default pt-2">Verified Bingos Log</h3>
+                    <ul id="verified-bingos-log" class="space-y-2 text-sm overflow-y-auto max-h-40"></ul>
+                </div>
+                <div class="flex-grow"></div>
+                <button id="verify-bingo-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-5 rounded-lg shadow-lg transition">Verify a Bingo</button>
+                <button id="new-game-btn" class="w-full card-alt-2 hover:bg-slate-300 dark:hover:bg-slate-600 text-alt font-semibold py-2 px-4 rounded-lg transition">Start New Game</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="settings-modal" class="modal fixed inset-0 bg-black/50 settings-overlay flex items-center justify-center p-4 z-50 hidden">
+        <div class="card rounded-2xl shadow-2xl p-6 w-full max-w-6xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">Settings & Stats</h2>
+                <button id="settings-close-btn" class="p-2 rounded-full hover:bg-slate-500/20 text-3xl leading-none">&times;</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 overflow-y-auto p-2 flex-grow">
+                <!-- Left Column: Controls -->
+                <div class="flex flex-col gap-6">
+                    <!-- Game Controls -->
+                    <div class="card-alt p-4 rounded-xl">
+                        <h3 class="text-lg font-bold mb-3">Game Controls</h3>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-3 items-center">
+                            <label for="game-variant-select" class="font-medium text-alt">Game Variant</label>
+                            <select id="game-variant-select" class="w-full p-2 rounded-md border border-default card text-sm">
+                                <option value="75">75-Ball (US)</option>
+                                <option value="90">90-Ball (UK)</option>
+                            </select>
+                            <label for="pattern-select" class="font-medium text-alt">Winning Pattern</label>
+                            <select id="pattern-select" class="w-full p-2 rounded-md border border-default card text-sm">
+                            </select>
+                            <label for="manual-mode-toggle" class="font-medium text-alt">Manual Mode</label>
+                            <div class="relative"><input type="checkbox" id="manual-mode-toggle" class="absolute opacity-0"/><label for="manual-mode-toggle" class="toggle-bg block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label></div>
+                            <label for="speed-bingo-toggle" class="font-medium text-alt">Speed Bingo</label>
+                            <div class="relative"><input type="checkbox" id="speed-bingo-toggle" class="absolute opacity-0"/><label for="speed-bingo-toggle" class="toggle-bg block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label></div>
+                        </div>
+                        <div id="speed-bingo-controls" class="mt-3 hidden">
+                            <label class="font-medium text-alt">Speed (seconds)</label>
+                            <div class="flex items-center gap-2 mt-1">
+                                <input type="range" id="speed-bingo-interval-slider" class="w-full" value="5" min="2" max="30" step="1">
+                                <span id="speed-bingo-interval-display" class="font-bold w-8 text-center">5s</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Audio -->
+                    <div class="card-alt p-4 rounded-xl">
+                        <h3 class="text-lg font-bold mb-3">Audio</h3>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-3 items-center">
+                            <label for="tts-toggle" class="font-medium text-alt">Call-out Voice</label>
+                            <div class="relative"><input type="checkbox" id="tts-toggle" class="absolute opacity-0"/><label for="tts-toggle" class="toggle-bg block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label></div>
+                            <label for="victory-sound-toggle" class="font-medium text-alt">Victory Sounds</label>
+                            <div class="relative"><input type="checkbox" id="victory-sound-toggle" class="absolute opacity-0" checked/><label for="victory-sound-toggle" class="toggle-bg block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label></div>
+                        </div>
+                        <div id="voice-options" class="mt-3 hidden">
+                            <label for="voice-select" class="font-medium text-alt">Voice</label>
+                            <div class="flex items-center gap-2 mt-1">
+                                <select id="voice-select" class="w-full p-2 rounded-md border border-default card text-sm"></select>
+                                <button id="play-voice-sample-btn" class="p-2 rounded-md bg-blue-500 hover:bg-blue-600 text-white transition" title="Play Sample">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Display & Theme -->
+                    <div class="card-alt p-4 rounded-xl">
+                        <h3 class="text-lg font-bold mb-3">Display & Theme</h3>
+                         <div class="space-y-2">
+                            <label class="font-medium text-alt">Theme</label>
+                            <div id="theme-selector" class="flex gap-2"><button data-theme="default" class="theme-btn flex-1 py-2 rounded-md font-semibold bg-slate-200 text-slate-800">Default</button><button data-theme="dark" class="theme-btn flex-1 py-2 rounded-md font-semibold bg-slate-700 text-slate-100">Dark</button><button data-theme="retro" class="theme-btn flex-1 py-2 rounded-md font-semibold bg-amber-200 text-amber-800">Retro</button></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Middle Column: History -->
+                <div class="card-alt p-4 rounded-xl flex flex-col">
+                    <h3 class="text-lg font-bold mb-3">Game History</h3>
+                    <ul id="game-history-list" class="space-y-3 overflow-y-auto text-sm flex-grow"></ul>
+                    <div class="mt-3 flex flex-col gap-2">
+                        <button id="export-history-btn" class="w-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-700 dark:text-blue-300 font-semibold py-2 px-4 rounded-lg transition text-sm">Export History</button>
+                        <button id="full-reset-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition text-sm">Full Application Reset</button>
+                    </div>
+                </div>
+                <!-- Right Column: Player Stats -->
+                <div class="card-alt p-4 rounded-xl flex flex-col">
+                    <h3 class="text-lg font-bold mb-3">Player Statistics</h3>
+                    <div class="flex-grow overflow-y-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs text-alt uppercase">
+                                <tr>
+                                    <th scope="col" class="px-4 py-2">Player</th>
+                                    <th scope="col" class="px-4 py-2 text-center">Wins</th>
+                                    <th scope="col" class="px-4 py-2 text-center">Played</th>
+                                    <th scope="col" class="px-4 py-2 text-center">Win %</th>
+                                    <th scope="col" class="px-4 py-2 text-center">Fastest</th>
+                                </tr>
+                            </thead>
+                            <tbody id="player-stats-list">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="verify-modal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden"><div class="card rounded-2xl shadow-2xl p-6 text-center max-w-sm w-full"><h2 class="text-2xl font-bold mb-4">Verify Bingo Card</h2><div class="mb-4 text-left"><label for="winner-select" class="block mb-2 text-sm font-medium text-alt">Who is the winner?</label><select id="winner-select" class="w-full p-2 rounded-md border border-default card"></select><input type="text" id="new-player-name-input" placeholder="Enter new player's name" class="hidden w-full mt-2 p-2 rounded-md border border-default card"></div><p class="text-muted mb-4">Enter 3, 4, or 5 numbers from the winning line.</p><div id="verify-grid" class="grid grid-cols-5 gap-2 mb-4"><input type="number" class="w-full p-2 text-center rounded-md border border-default card"><input type="number" class="w-full p-2 text-center rounded-md border border-default card"><input type="number" class="w-full p-2 text-center rounded-md border border-default card" placeholder="Free"><input type="number" class="w-full p-2 text-center rounded-md border border-default card"><input type="number" class="w-full p-2 text-center rounded-md border border-default card"></div><div id="verify-result" class="mb-4 h-6"></div><div class="flex gap-4"><button id="modal-cancel-btn" class="w-full card-alt-2 hover:bg-slate-300 dark:hover:bg-slate-600 py-2 rounded-lg">Cancel</button><button id="modal-check-btn" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg">Check Bingo</button></div></div></div>
+    <div id="confirmation-modal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden"><div class="card rounded-2xl shadow-2xl p-6 text-center max-w-sm w-full"><h2 id="confirmation-title" class="text-2xl font-bold mb-2">Are you sure?</h2><p id="confirmation-text" class="text-muted mb-6">This action cannot be undone.</p><div class="flex gap-4"><button id="confirmation-cancel-btn" class="w-full card-alt-2 hover:bg-slate-300 dark:hover:bg-slate-600 py-2 rounded-lg transition">Cancel</button><button id="confirmation-confirm-btn" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg transition">Confirm</button></div></div></div>
+    <div id="notification-modal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden"><div class="card rounded-2xl shadow-2xl p-6 text-center max-w-sm w-full"><h2 id="notification-title" class="text-2xl font-bold mb-2">Notification</h2><p id="notification-text" class="text-muted mb-6">This is a notification.</p><div class="flex justify-center"><button id="notification-ok-btn" class="w-1/2 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition">OK</button></div></div></div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Element Cache ---
+            const elements = {
+                body: document.body, mainContainer: document.querySelector('.w-full.max-w-screen-2xl'),
+                boardContainer: document.getElementById('tracking-board'), callNumberBtn: document.getElementById('call-number-btn'),
+                newGameBtn: document.getElementById('new-game-btn'), fullResetBtn: document.getElementById('full-reset-btn'),
+                calledNumberDisplay: document.getElementById('called-number-display'), lastNumberDisplay: document.getElementById('last-number-display'),
+                numbersCalledCount: document.getElementById('numbers-called-count'), totalNumbersDisplay: document.getElementById('total-numbers-display'),
+                playerNameInput: document.getElementById('player-name-input'), addPlayerBtn: document.getElementById('add-player-btn'),
+                playerList: document.getElementById('player-list'), winnerList: document.getElementById('winner-list'),
+                gameHistoryList: document.getElementById('game-history-list'), verifyBingoBtn: document.getElementById('verify-bingo-btn'),
+                verifyModal: document.getElementById('verify-modal'), verifyGrid: document.getElementById('verify-grid'),
+                winnerSelect: document.getElementById('winner-select'), verifyResult: document.getElementById('verify-result'),
+                modalCancelBtn: document.getElementById('modal-cancel-btn'), modalCheckBtn: document.getElementById('modal-check-btn'),
+                confirmationModal: document.getElementById('confirmation-modal'), confirmationTitle: document.getElementById('confirmation-title'),
+                confirmationText: document.getElementById('confirmation-text'), confirmationCancelBtn: document.getElementById('confirmation-cancel-btn'),
+                confirmationConfirmBtn: document.getElementById('confirmation-confirm-btn'), lastNumbersDisplay: document.getElementById('last-numbers-display'),
+                manualModeToggle: document.getElementById('manual-mode-toggle'), themeSelector: document.getElementById('theme-selector'),
+                exportHistoryBtn: document.getElementById('export-history-btn'), undoBtn: document.getElementById('undo-btn'),
+                fastestBingoDisplay: document.getElementById('fastest-bingo-display'),
+                speedBingoToggle: document.getElementById('speed-bingo-toggle'), speedBingoControls: document.getElementById('speed-bingo-controls'),
+                speedBingoPlayPause: document.getElementById('speed-bingo-play-pause'), speedBingoIntervalSlider: document.getElementById('speed-bingo-interval-slider'),
+                speedBingoIntervalDisplay: document.getElementById('speed-bingo-interval-display'),
+                gameVariantSelect: document.getElementById('game-variant-select'),
+                ttsToggle: document.getElementById('tts-toggle'), victorySoundToggle: document.getElementById('victory-sound-toggle'),
+                confettiContainer: document.getElementById('confetti-container'), fullscreenBtn: document.getElementById('fullscreen-btn'),
+                settingsBtn: document.getElementById('settings-btn'), settingsModal: document.getElementById('settings-modal'),
+                settingsCloseBtn: document.getElementById('settings-close-btn'), speedBingoPanel: document.getElementById('speed-bingo-panel'),
+                verifyBingoBtnSpeed: document.getElementById('verify-bingo-btn-speed'), importCsvBtn: document.getElementById('import-csv-btn'),
+                newPlayerNameInput: document.getElementById('new-player-name-input'), voiceOptions: document.getElementById('voice-options'),
+                voiceSelect: document.getElementById('voice-select'),
+                playVoiceSampleBtn: document.getElementById('play-voice-sample-btn'),
+                speedBingoTimer: document.getElementById('speed-bingo-timer'),
+                speedBingoTimerCircle: document.getElementById('speed-bingo-timer-circle'),
+                speedBingoTimerText: document.getElementById('speed-bingo-timer-text'),
+                verifiedBingosLog: document.getElementById('verified-bingos-log'),
+                playerStatsList: document.getElementById('player-stats-list'),
+                notificationModal: document.getElementById('notification-modal'),
+                notificationTitle: document.getElementById('notification-title'),
+                notificationText: document.getElementById('notification-text'),
+                notificationOkBtn: document.getElementById('notification-ok-btn'),
+                patternDisplay: document.getElementById('pattern-display'),
+                patternSelect: document.getElementById('pattern-select'),
+            };
+
+            // --- State Management ---
+            let state = {};
+            let voices = [];
+            const FULL_DASH_ARRAY = 283;
+
+            const BINGO_PATTERNS = {
+                any_line: { name: "Any Line" },
+                four_corners: { name: "Four Corners", grid: [[1,0,0,0,1],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[1,0,0,0,1]] },
+                postage_stamp: { name: "Postage Stamp", grid: [[1,1,0,0,0],[1,1,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]] },
+                letter_x: { name: "Letter X", grid: [[1,0,0,0,1],[0,1,0,1,0],[0,0,1,0,0],[0,1,0,1,0],[1,0,0,0,1]] },
+                blackout: { name: "Blackout", grid: [[1,1,1,1,1],[1,1,1,1,1],[1,1,1,1,1],[1,1,1,1,1],[1,1,1,1,1]] },
+            };
+            BINGO_PATTERNS.any_line.visualGrid = [[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0]];
+
+            const defaultState = {
+                players: [], gameHistory: [], playerStats: {}, currentGame: null, 
+                settings: { 
+                    theme: 'dark', 
+                    isManualMode: false, 
+                    gameVariant: 75,
+                    activePattern: 'any_line',
+                    sounds: { tts: true, victory: true, voice: 'Google US English' },
+                    speedBingo: { isActive: true, isPlaying: false, intervalId: null, countdownIntervalId: null, delay: 5000 } 
+                } 
+            };
+            
+            const winSynth = new Tone.Synth().toDestination();
+            const winSequence = new Tone.Sequence((time, note) => {
+                winSynth.triggerAttackRelease(note, "8n", time);
+            }, ["C4", "E4", "G4", "C5"], "8n");
+
+            const sounds = {
+                call: new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 } }).toDestination(),
+                winSequence: winSequence,
+                reset: new Tone.Synth({ oscillator: { type: "fmsquare" }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.2 } }).toDestination(),
+                undo: new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.2 } }).toDestination(),
+            };
+
+            // --- Core Functions ---
+            function createNewGame() {
+                const variant = state.settings.gameVariant;
+                return {
+                    gameNumber: state.gameHistory.length + 1, calledNumbers: new Set(),
+                    availableNumbers: Array.from({ length: variant }, (_, i) => i + 1), winners: [],
+                    verifiedBingos: [], lastCalledNumbers: [], fastestBingo: { player: null, count: variant + 1 },
+                    lockUndoUntilSize: 0,
+                    pattern: state.settings.activePattern,
+                    playersInGame: [...state.players],
+                    variant: variant
+                };
+            }
+
+            function saveState() {
+                const stateToSave = { ...state, currentGame: { ...state.currentGame, calledNumbers: Array.from(state.currentGame.calledNumbers) } };
+                localStorage.setItem('bingoHostState_v3', JSON.stringify(stateToSave));
+            }
+
+            function loadState() {
+                const savedState = localStorage.getItem('bingoHostState_v3');
+                if (savedState) {
+                    const parsed = JSON.parse(savedState);
+                    const mergedSettings = {
+                        ...defaultState.settings, ...parsed.settings,
+                        sounds: { ...defaultState.settings.sounds, ...(parsed.settings ? parsed.settings.sounds : {}) },
+                        speedBingo: { ...defaultState.settings.speedBingo, ...(parsed.settings ? parsed.settings.speedBingo : {}) }
+                    };
+                    state = { ...defaultState, ...parsed, settings: mergedSettings };
+                    if (parsed.currentGame) {
+                        state.currentGame = { ...createNewGame(), ...parsed.currentGame, calledNumbers: new Set(parsed.currentGame.calledNumbers) };
+                    } else { state.currentGame = createNewGame(); }
+                } else {
+                    state = JSON.parse(JSON.stringify(defaultState));
+                    state.currentGame = createNewGame();
+                }
+                applySettings(); updateAllUI();
+            }
+
+            function applySettings() {
+                document.documentElement.dataset.theme = state.settings.theme;
+                elements.manualModeToggle.checked = state.settings.isManualMode;
+                elements.speedBingoToggle.checked = state.settings.speedBingo.isActive;
+                elements.gameVariantSelect.value = state.settings.gameVariant;
+                elements.patternSelect.value = state.settings.activePattern;
+                elements.ttsToggle.checked = state.settings.sounds.tts;
+                elements.victorySoundToggle.checked = state.settings.sounds.victory;
+                elements.speedBingoIntervalSlider.value = state.settings.speedBingo.delay / 1000;
+                elements.speedBingoIntervalDisplay.textContent = `${state.settings.speedBingo.delay / 1000}s`;
+                toggleManualMode(state.settings.isManualMode);
+                toggleSpeedBingo(state.settings.speedBingo.isActive);
+                toggleTTS(state.settings.sounds.tts);
+            }
+            
+            function getLetterForNumber(number) {
+                if (state.currentGame.variant === 90) return '';
+                if (number <= 15) return 'B'; if (number <= 30) return 'I';
+                if (number <= 45) return 'N'; if (number <= 60) return 'G';
+                return 'O';
+            }
+
+            // --- UI Rendering ---
+            function renderPlayers() {
+                elements.playerList.innerHTML = state.players.length === 0 ? `<li class="text-muted text-sm px-2">Add players!</li>` : '';
+                const sortedPlayers = [...state.players].sort((a, b) => a.localeCompare(b));
+                sortedPlayers.forEach(player => {
+                    const li = document.createElement('li');
+                    li.className = 'flex justify-between items-center card p-2 rounded-md';
+                    li.innerHTML = `<span class="font-medium">${player}</span><button data-name="${player}" class="remove-player-btn text-red-500 hover:text-red-700 text-xl">&times;</button>`;
+                    elements.playerList.appendChild(li);
+                });
+            }
+
+            function renderWinners() {
+                elements.winnerList.innerHTML = state.currentGame.winners.length === 0 ? `<li class="text-muted">No winners yet.</li>` : '';
+                state.currentGame.winners.forEach(winner => {
+                    const li = document.createElement('li');
+                    li.className = 'font-semibold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/50 px-3 py-2 rounded-md';
+                    li.textContent = `🏆 ${winner.name} (${winner.wins} ${winner.wins > 1 ? 'wins' : 'win'})`;
+                    elements.winnerList.appendChild(li);
+                });
+            }
+            
+            function renderVerifiedBingosLog() {
+                elements.verifiedBingosLog.innerHTML = state.currentGame.verifiedBingos.length === 0 ? `<li class="text-muted">No bingos verified.</li>` : '';
+                [...state.currentGame.verifiedBingos].reverse().forEach(bingo => {
+                    const li = document.createElement('li');
+                    li.className = 'p-1.5 card rounded-md';
+                    li.innerHTML = `<div class="font-medium">${bingo.winner}</div><div class="text-muted text-xs">Numbers: ${bingo.numbers.join(', ')}</div>`;
+                    elements.verifiedBingosLog.appendChild(li);
+                });
+            }
+
+            function renderFastestBingo() {
+                const fb = state.currentGame.fastestBingo;
+                if (fb.player) {
+                    elements.fastestBingoDisplay.innerHTML = `<div>Fastest Bingo:</div><div class="font-bold text-lg">${fb.player}</div><div class="text-sm">(${fb.count} numbers)</div>`;
+                } else { elements.fastestBingoDisplay.innerHTML = `<div class="text-muted">No bingos yet.</div>`; }
+            }
+            
+            function renderLastCalled() {
+                elements.lastNumbersDisplay.innerHTML = '';
+                if (state.currentGame.lastCalledNumbers.length <= 1) {
+                    elements.lastNumbersDisplay.innerHTML = `<div class="text-muted text-sm">No previous numbers.</div>`; return;
+                }
+                state.currentGame.lastCalledNumbers.slice(1, 6).forEach(num => {
+                    const letter = getLetterForNumber(num);
+                    const div = document.createElement('div');
+                    div.className = 'h-10 w-10 flex items-center justify-center rounded-full font-bold text-sm card-alt-2 shadow';
+                    div.textContent = `${letter}${num}`;
+                    elements.lastNumbersDisplay.appendChild(div);
+                });
+            }
+
+            function renderHistory() {
+                elements.gameHistoryList.innerHTML = state.gameHistory.length === 0 ? `<li class="text-muted px-1">No past games.</li>` : '';
+                [...state.gameHistory].reverse().forEach(game => {
+                    const li = document.createElement('li'); li.className = 'p-2 card rounded-md';
+                    const winnersText = game.winners.length > 0 ? game.winners.map(w => `${w.name} (${w.wins})`).join(', ') : 'No winners';
+                    let fastestBingoText = '';
+                    if (game.fastestBingo && game.fastestBingo.player) {
+                        fastestBingoText = `<div class="text-xs text-alt mt-1">⚡️ Fastest: ${game.fastestBingo.player} (${game.fastestBingo.count} calls)</div>`;
+                    }
+                    li.innerHTML = `<div class="font-bold">Game ${game.gameNumber} (${game.variant}-ball)</div><div class="text-alt">Winners: ${winnersText}</div>${fastestBingoText}`;
+                    elements.gameHistoryList.appendChild(li);
+                });
+            }
+
+            function renderWinningPattern() {
+                elements.patternDisplay.innerHTML = '';
+                const patternKey = state.currentGame.pattern || 'any_line';
+                if (state.currentGame.variant !== 75) {
+                    elements.patternDisplay.innerHTML = `<div class="text-muted text-xs col-span-5 text-center my-auto">Patterns only for 75-ball</div>`;
+                    return;
+                }
+
+                const pattern = BINGO_PATTERNS[patternKey];
+                const grid = pattern.visualGrid || pattern.grid;
+
+                for (let r = 0; r < 5; r++) {
+                    for (let c = 0; c < 5; c++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'pattern-cell';
+                        if (grid && grid[r][c] === 1) {
+                            cell.classList.add('active');
+                        }
+                        if (r === 2 && c === 2) {
+                            cell.classList.add('free');
+                        }
+                        elements.patternDisplay.appendChild(cell);
+                    }
+                }
+            }
+            
+            function renderPlayerStats() {
+                const stats = state.playerStats || {};
+                const sortedPlayers = Object.keys(stats).sort((a, b) => (stats[b].totalWins || 0) - (stats[a].totalWins || 0));
+
+                if (sortedPlayers.length === 0) {
+                    elements.playerStatsList.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center text-muted">No player stats yet. Play some games!</td></tr>`;
+                    return;
+                }
+
+                elements.playerStatsList.innerHTML = '';
+                sortedPlayers.forEach(playerName => {
+                    const playerData = stats[playerName];
+                    const winPercentage = playerData.gamesPlayed > 0 ? ((playerData.totalWins / playerData.gamesPlayed) * 100).toFixed(0) : 0;
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-b border-default';
+                    tr.innerHTML = `
+                        <td class="px-4 py-2 font-medium whitespace-nowrap">${playerName}</td>
+                        <td class="px-4 py-2 text-center">${playerData.totalWins || 0}</td>
+                        <td class="px-4 py-2 text-center">${playerData.gamesPlayed || 0}</td>
+                        <td class="px-4 py-2 text-center">${winPercentage}%</td>
+                        <td class="px-4 py-2 text-center">${playerData.fastestBingo > state.settings.gameVariant ? '-' : playerData.fastestBingo}</td>
+                    `;
+                    elements.playerStatsList.appendChild(tr);
+                });
+            }
+
+            function renderTrackingBoard() {
+                elements.boardContainer.innerHTML = '';
+                elements.boardContainer.className = 'tracking-board';
+                if (state.currentGame.variant === 75) {
+                    const ranges = [
+                        { letter: 'B', min: 1, max: 15, color: 'col-b', textColor: 'text-blue-500' }, { letter: 'I', min: 16, max: 30, color: 'col-i', textColor: 'text-red-500' },
+                        { letter: 'N', min: 31, max: 45, color: 'col-n', textColor: 'text-yellow-500' }, { letter: 'G', min: 46, max: 60, color: 'col-g', textColor: 'text-green-500' },
+                        { letter: 'O', min: 61, max: 75, color: 'col-o', textColor: 'text-purple-500' },
+                    ];
+                    ranges.forEach(range => {
+                        const row = document.createElement('div'); row.className = 'board-row';
+                        const headerCell = document.createElement('div'); headerCell.className = `board-row-header ${range.textColor}`; headerCell.textContent = range.letter; row.appendChild(headerCell);
+                        const numbersContainer = document.createElement('div'); numbersContainer.className = 'board-row-numbers';
+                        for (let i = range.min; i <= range.max; i++) {
+                            const cell = document.createElement('div'); cell.dataset.number = i;
+                            cell.className = `board-cell card-alt-2 ${range.color}`; cell.textContent = i;
+                            if (state.currentGame.calledNumbers.has(i)) { cell.classList.add('called'); }
+                            numbersContainer.appendChild(cell);
+                        }
+                        row.appendChild(numbersContainer); elements.boardContainer.appendChild(row);
+                    });
+                } else {
+                    elements.boardContainer.className = 'grid grid-cols-10 gap-2';
+                    for (let i = 1; i <= 90; i++) {
+                        const cell = document.createElement('div'); cell.dataset.number = i;
+                        cell.className = 'board-cell card-alt-2 col-b'; cell.textContent = i;
+                        if (state.currentGame.calledNumbers.has(i)) { cell.classList.add('called'); }
+                        elements.boardContainer.appendChild(cell);
+                    }
+                }
+            }
+
+            function updateAllUI() {
+                renderPlayers(); renderWinners(); renderHistory(); renderTrackingBoard(); renderLastCalled(); renderFastestBingo(); renderVerifiedBingosLog(); renderPlayerStats();
+                renderWinningPattern();
+                const currentNum = state.currentGame.lastCalledNumbers[0] || null;
+                const lastNum = state.currentGame.lastCalledNumbers[1] || null;
+                updateCalledNumberDisplay(currentNum, lastNum);
+                
+                const undoIsLocked = state.currentGame.lockUndoUntilSize > 0 && 
+                                     state.currentGame.calledNumbers.size <= state.currentGame.lockUndoUntilSize;
+                elements.undoBtn.disabled = state.currentGame.lastCalledNumbers.length === 0 || undoIsLocked;
+            }
+
+            // --- Game Logic ---
+            function addPlayer(name, skipRender = false) {
+                const trimmedName = name.trim();
+                if (trimmedName && !state.players.includes(trimmedName)) {
+                    state.players.push(trimmedName);
+                    if (!state.playerStats[trimmedName]) {
+                        state.playerStats[trimmedName] = { totalWins: 0, gamesPlayed: 0, fastestBingo: state.settings.gameVariant + 1 };
+                    }
+                    if (!skipRender) {
+                        renderPlayers(); saveState();
+                    }
+                    elements.playerNameInput.value = '';
+                    return true;
+                }
+                return false;
+            }
+
+            function removePlayer(name) {
+                openConfirmationModal(`Remove ${name}?`, 'This will remove the player but keep their stats. Are you sure?', () => {
+                    const playerIndex = state.players.indexOf(name);
+                    if (playerIndex > -1) { state.players.splice(playerIndex, 1); }
+                    
+                    state.currentGame.winners = state.currentGame.winners.filter(winner => winner.name !== name);
+
+                    if (state.currentGame.winners.length === 0) {
+                        state.currentGame.lockUndoUntilSize = 0;
+                    }
+
+                    updateAllUI(); 
+                    saveState();
+                });
+            }
+            
+            function handleImportCSV() {
+                const file = elements.importCsvBtn.files[0]; if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const text = event.target.result;
+                    const names = text.split(/[\n,]/).map(name => name.trim()).filter(Boolean);
+                    let addedCount = 0;
+                    names.forEach(name => { if (addPlayer(name, true)) { addedCount++; } });
+                    renderPlayers(); saveState();
+                    openNotificationModal('Import Successful', `${addedCount} new player(s) imported successfully!`);
+                };
+                reader.readAsText(file); elements.importCsvBtn.value = '';
+            }
+
+            function startNewGame() {
+                if (state.currentGame.calledNumbers.size === 0) {
+                    state.currentGame = createNewGame();
+                    updateAllUI();
+                    saveState();
+                    return;
+                }
+                openConfirmationModal('Start a New Game?', 'This will end the current game and save it to history. Are you sure?',
+                    () => {
+                        if (state.currentGame && state.currentGame.calledNumbers.size > 0) {
+                            state.currentGame.playersInGame.forEach(playerName => {
+                                if (state.playerStats[playerName]) {
+                                    state.playerStats[playerName].gamesPlayed++;
+                                }
+                            });
+                            state.gameHistory.push({ ...state.currentGame, calledNumbers: Array.from(state.currentGame.calledNumbers) });
+                        }
+                        pauseSpeedBingo();
+                        state.currentGame = createNewGame();
+                        sounds.reset.triggerAttackRelease("C3", "8n", Tone.now());
+                        updateAllUI(); saveState();
+                    }
+                );
+            }
+            
+            function executeFullReset() {
+                localStorage.removeItem('bingoHostState_v3');
+                state = JSON.parse(JSON.stringify(defaultState));
+                state.currentGame = createNewGame();
+                sounds.reset.triggerAttackRelease("C3", "8n", Tone.now());
+                updateAllUI(); saveState();
+            }
+
+            function updateCalledNumberDisplay(currentNumber, lastNumber) {
+                elements.calledNumberDisplay.textContent = currentNumber ? `${getLetterForNumber(currentNumber)}${currentNumber}` : '-';
+                elements.lastNumberDisplay.textContent = lastNumber ? `${getLetterForNumber(lastNumber)}${lastNumber}` : '-';
+                elements.numbersCalledCount.innerHTML = `${state.currentGame.calledNumbers.size}<span id="total-numbers-display" class="text-2xl font-medium text-muted">/${state.currentGame.variant}</span>`;
+                const canCall = state.currentGame.availableNumbers.length > 0;
+                const isDisabled = !canCall || state.settings.isManualMode || state.settings.speedBingo.isPlaying;
+                elements.callNumberBtn.disabled = isDisabled;
+                elements.callNumberBtn.classList.toggle('opacity-50', isDisabled);
+                elements.callNumberBtn.classList.toggle('cursor-not-allowed', isDisabled);
+            }
+            
+            function callSpecificNumber(number) {
+                if (state.currentGame.calledNumbers.has(number)) return;
+                state.currentGame.calledNumbers.add(number);
+                const numIndex = state.currentGame.availableNumbers.indexOf(number);
+                if (numIndex > -1) state.currentGame.availableNumbers.splice(numIndex, 1);
+                state.currentGame.lastCalledNumbers.unshift(number);
+                elements.calledNumberDisplay.classList.replace('number-active', 'number-enter');
+                setTimeout(() => {
+                    updateCalledNumberDisplay(number, state.currentGame.lastCalledNumbers[1] || null);
+                    elements.calledNumberDisplay.classList.replace('number-enter', 'number-active');
+                }, 100);
+                const boardCell = elements.boardContainer.querySelector(`[data-number="${number}"]`);
+                if (boardCell) boardCell.classList.add('called');
+                sounds.call.triggerAttackRelease("C4", "8n", Tone.now());
+                if (state.settings.sounds.tts) {
+                    const letter = getLetterForNumber(number);
+                    const utterance = new SpeechSynthesisUtterance(`${letter} ${number}`);
+                    const selectedVoice = voices.find(v => v.name === state.settings.sounds.voice);
+                    if (selectedVoice) { utterance.voice = selectedVoice; }
+                    speechSynthesis.speak(utterance);
+                }
+                updateAllUI(); saveState();
+            }
+
+            function undoLastNumber() {
+                const lastNumber = state.currentGame.lastCalledNumbers.shift();
+                if (typeof lastNumber === 'undefined') return;
+
+                state.currentGame.calledNumbers.delete(lastNumber);
+                state.currentGame.availableNumbers.push(lastNumber);
+                state.currentGame.availableNumbers.sort((a, b) => a - b);
+                const boardCell = elements.boardContainer.querySelector(`[data-number="${lastNumber}"]`);
+                if (boardCell) boardCell.classList.remove('called');
+                sounds.undo.triggerAttackRelease("A2", "8n", Tone.now());
+                updateAllUI(); 
+                saveState();
+            }
+
+            function callRandomNumber() {
+                if (state.currentGame.availableNumbers.length === 0) { pauseSpeedBingo(); return; }
+                const randomIndex = Math.floor(Math.random() * state.currentGame.availableNumbers.length);
+                const number = state.currentGame.availableNumbers[randomIndex];
+                callSpecificNumber(number);
+            }
+
+            function populateWinnerSelect() {
+                elements.winnerSelect.innerHTML = '';
+                const sortedPlayers = [...state.players].sort((a, b) => a.localeCompare(b));
+                sortedPlayers.forEach(player => {
+                    const option = document.createElement('option');
+                    option.value = player; option.textContent = player;
+                    elements.winnerSelect.appendChild(option);
+                });
+                const addNewOption = document.createElement('option');
+                addNewOption.value = '__NEW__'; addNewOption.textContent = '++ Add New Player ++';
+                elements.winnerSelect.appendChild(addNewOption);
+            }
+
+            function openVerifyModal() {
+                if (state.players.length === 0) {
+                    openConfirmationModal(
+                        'No Players Added', 
+                        'You can add a new player name during verification. Continue?',
+                        () => {
+                            populateWinnerSelect();
+                            elements.winnerSelect.value = '__NEW__';
+                            elements.newPlayerNameInput.classList.remove('hidden');
+                            elements.verifyGrid.querySelectorAll('input').forEach(input => {
+                                input.value = ''; input.max = state.settings.gameVariant; input.min = 1;
+                            });
+                            elements.verifyResult.textContent = ''; elements.verifyModal.classList.remove('hidden');
+                        }
+                    );
+                    return;
+                }
+                populateWinnerSelect();
+                elements.newPlayerNameInput.classList.add('hidden'); elements.newPlayerNameInput.value = '';
+                elements.verifyGrid.querySelectorAll('input').forEach(input => {
+                    input.value = ''; input.max = state.settings.gameVariant; input.min = 1;
+                });
+                elements.verifyResult.textContent = ''; elements.verifyModal.classList.remove('hidden');
+            }
+
+            function closeVerifyModal() { elements.verifyModal.classList.add('hidden'); }
+            
+            function triggerConfetti() {
+                const colors = ['#3b82f6', '#ef4444', '#eab308', '#22c55e', '#8b5cf6'];
+                for (let i = 0; i < 100; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * 100 + 'vw';
+                    confetti.style.animationDelay = Math.random() * 2 + 's';
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.transform = `scale(${Math.random() * 0.5 + 0.5})`;
+                    elements.confettiContainer.appendChild(confetti);
+                    setTimeout(() => confetti.remove(), 4000);
+                }
+            }
+
+            function processWin(winnerName, winningNumbers) {
+                state.currentGame.verifiedBingos.push({ winner: winnerName, numbers: winningNumbers });
+                
+                const existingWinner = state.currentGame.winners.find(w => w.name === winnerName);
+                if (existingWinner) { existingWinner.wins++; } 
+                else { state.currentGame.winners.push({ name: winnerName, wins: 1 }); }
+                
+                const currentCallCount = state.currentGame.calledNumbers.size;
+                if (currentCallCount < state.currentGame.fastestBingo.count) {
+                    state.currentGame.fastestBingo = { player: winnerName, count: currentCallCount };
+                }
+
+                if (state.currentGame.lockUndoUntilSize === 0) {
+                    state.currentGame.lockUndoUntilSize = state.currentGame.calledNumbers.size;
+                }
+
+                if (!state.playerStats[winnerName]) {
+                    state.playerStats[winnerName] = { totalWins: 0, gamesPlayed: 0, fastestBingo: state.settings.gameVariant + 1 };
+                }
+                state.playerStats[winnerName].totalWins++;
+                if (currentCallCount < state.playerStats[winnerName].fastestBingo) {
+                    state.playerStats[winnerName].fastestBingo = currentCallCount;
+                }
+                
+                if(state.settings.sounds.victory) {
+                    sounds.winSequence.start();
+                    Tone.Transport.start();
+                    setTimeout(() => Tone.Transport.stop(), 1000);
+                    triggerConfetti();
+                }
+
+                updateAllUI();
+                saveState();
+                setTimeout(closeVerifyModal, 1500);
+            }
+
+            function checkBingo() {
+                let winnerName = elements.winnerSelect.value;
+                if (winnerName === '__NEW__') {
+                    winnerName = elements.newPlayerNameInput.value.trim();
+                    if (!winnerName) {
+                        elements.verifyResult.textContent = 'Please enter a name for the new player.';
+                        elements.verifyResult.className = 'text-red-500 h-6'; return;
+                    }
+                    if (addPlayer(winnerName, true)) {
+                        renderPlayers();
+                        populateWinnerSelect();
+                        elements.winnerSelect.value = winnerName;
+                        elements.newPlayerNameInput.classList.add('hidden');
+                    } else {
+                        elements.verifyResult.textContent = 'Player name already exists.';
+                        elements.verifyResult.className = 'text-red-500 h-6'; return;
+                    }
+                }
+
+                if (winnerName.endsWith('0')) {
+                    elements.verifyResult.innerHTML = '<span class="animate-pulse">SECRET WINNER! VALID BINGO!</span>';
+                    elements.verifyResult.className = 'text-yellow-400 font-bold h-6';
+                    processWin(winnerName, ['Secret Win']);
+                    return;
+                }
+
+                const inputs = Array.from(elements.verifyGrid.querySelectorAll('input[type="number"]'));
+                const numbersToCheck = inputs.map(input => parseInt(input.value)).filter(val => !isNaN(val) && val >= 1 && val <= state.settings.gameVariant);
+                
+                const uniqueNumbers = new Set(numbersToCheck);
+                if (uniqueNumbers.size < numbersToCheck.length) {
+                    elements.verifyResult.textContent = 'Duplicate numbers are not allowed.';
+                    elements.verifyResult.className = 'text-red-500 h-6';
+                    return;
+                }
+
+                if (numbersToCheck.length < 3) {
+                    elements.verifyResult.textContent = 'Please enter at least 3 valid numbers.';
+                    elements.verifyResult.className = 'text-red-500 h-6'; return;
+                }
+                const allCalled = numbersToCheck.every(num => state.currentGame.calledNumbers.has(num));
+                if (allCalled) {
+                    elements.verifyResult.textContent = 'VALID BINGO!'; elements.verifyResult.className = 'text-green-500 font-bold h-6';
+                    processWin(winnerName, numbersToCheck);
+                } else {
+                    const invalidNumbers = numbersToCheck.filter(num => !state.currentGame.calledNumbers.has(num));
+                    elements.verifyResult.textContent = `Invalid! Uncalled: ${invalidNumbers.join(', ')}`;
+                    elements.verifyResult.className = 'text-red-500 h-6';
+                }
+            }
+            
+            // --- Toggles & Controls ---
+            function toggleManualMode(isManual) { 
+                state.settings.isManualMode = isManual; 
+                elements.boardContainer.classList.toggle('manual-mode', isManual); 
+                updateAllUI(); saveState(); 
+            }
+            
+            function playSpeedBingo() {
+                if (state.settings.speedBingo.intervalId) return;
+                state.settings.speedBingo.isPlaying = true;
+
+                const performCall = () => {
+                    callRandomNumber();
+                    startCountdown();
+                };
+                
+                state.settings.speedBingo.intervalId = setInterval(performCall, state.settings.speedBingo.delay);
+                elements.speedBingoPlayPause.innerHTML = `<svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>`;
+                startCountdown();
+                updateAllUI();
+            }
+
+            function pauseSpeedBingo() {
+                clearInterval(state.settings.speedBingo.intervalId);
+                clearInterval(state.settings.speedBingo.countdownIntervalId);
+                state.settings.speedBingo.intervalId = null;
+                state.settings.speedBingo.countdownIntervalId = null;
+                state.settings.speedBingo.isPlaying = false;
+                elements.speedBingoPlayPause.innerHTML = `<svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>`;
+                updateTimerUI(0, state.settings.speedBingo.delay / 1000);
+                updateAllUI();
+            }
+            
+            function startCountdown() {
+                clearInterval(state.settings.speedBingo.countdownIntervalId);
+                let timeLeft = state.settings.speedBingo.delay / 1000;
+                const totalTime = timeLeft;
+                
+                updateTimerUI(timeLeft, totalTime);
+
+                state.settings.speedBingo.countdownIntervalId = setInterval(() => {
+                    timeLeft--;
+                    updateTimerUI(timeLeft, totalTime);
+                    if (timeLeft <= 0) {
+                        clearInterval(state.settings.speedBingo.countdownIntervalId);
+                    }
+                }, 1000);
+            }
+
+            function updateTimerUI(timeLeft, totalTime) {
+                elements.speedBingoTimerText.textContent = timeLeft;
+                const dashOffset = FULL_DASH_ARRAY * (1 - (timeLeft / totalTime));
+                elements.speedBingoTimerCircle.style.strokeDashoffset = dashOffset;
+            }
+
+            function toggleSpeedBingo(isActive) {
+                state.settings.speedBingo.isActive = isActive;
+                elements.speedBingoControls.classList.toggle('hidden', !isActive);
+                elements.speedBingoPanel.classList.toggle('hidden', !isActive);
+                if (!isActive) pauseSpeedBingo();
+                updateAllUI(); saveState();
+            }
+
+            function toggleTTS(isTTS) {
+                state.settings.sounds.tts = isTTS;
+                elements.voiceOptions.classList.toggle('hidden', !isTTS);
+                saveState();
+            }
+
+            function populateVoices() {
+                voices = speechSynthesis.getVoices();
+                elements.voiceSelect.innerHTML = '';
+                voices.filter(v => v.lang.startsWith('en')).forEach(voice => {
+                    const option = document.createElement('option');
+                    option.textContent = `${voice.name} (${voice.lang})`;
+                    option.value = voice.name;
+                    elements.voiceSelect.appendChild(option);
+                });
+                if (state.settings.sounds.voice) { elements.voiceSelect.value = state.settings.sounds.voice; }
+            }
+
+            function populatePatternSelector() {
+                elements.patternSelect.innerHTML = '';
+                for (const key in BINGO_PATTERNS) {
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = BINGO_PATTERNS[key].name;
+                    elements.patternSelect.appendChild(option);
+                }
+            }
+
+            function playVoiceSample() {
+                if (speechSynthesis.speaking) return;
+                const utterance = new SpeechSynthesisUtterance("BINGO!");
+                const selectedVoice = voices.find(v => v.name === elements.voiceSelect.value);
+                if (selectedVoice) {
+                    utterance.voice = selectedVoice;
+                }
+                speechSynthesis.speak(utterance);
+            }
+
+            function toggleFullscreen() {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        openNotificationModal('Fullscreen Error', `Could not enter full-screen mode: ${err.message}`);
+                    });
+                } else { document.exitFullscreen(); }
+            }
+
+            function exportHistory() {
+                let textContent = "Rowlett Group's Bingo Night - Game History\n";
+                textContent += `Exported on: ${new Date().toLocaleString()}\n\n`;
+                const allGames = [...state.gameHistory];
+                if (state.currentGame && state.currentGame.calledNumbers.size > 0) { allGames.push(state.currentGame); }
+                if (allGames.length === 0) { textContent += "No games have been played yet."; } 
+                else {
+                    allGames.forEach(game => {
+                        textContent += `--- Game ${game.gameNumber} (${game.variant}-ball) ---\n`;
+                        const winnersText = game.winners.length > 0 ? game.winners.map(w => `${w.name} (${w.wins} ${w.wins > 1 ? 'wins' : 'win'})`).join(', ') : 'No winners';
+                        textContent += `Winners: ${winnersText}\n`;
+                        if (game.fastestBingo && game.fastestBingo.player) { textContent += `Fastest Bingo: ${game.fastestBingo.player} (${game.fastestBingo.count} numbers)\n`; }
+                        const calledCount = Array.isArray(game.calledNumbers) ? game.calledNumbers.length : game.calledNumbers.size;
+                        textContent += `Total Numbers Called: ${calledCount}\n\n`;
+                    });
+                }
+                const blob = new Blob([textContent], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob); const a = document.createElement('a');
+                a.href = url; a.download = `bingo_history_${new Date().toISOString().slice(0,10)}.txt`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            }
+
+            // --- Reusable Modals ---
+            let confirmAction = null, cancelAction = null;
+            function openConfirmationModal(title, text, onConfirm, onCancel = null) {
+                elements.confirmationTitle.textContent = title;
+                elements.confirmationText.textContent = text;
+                confirmAction = onConfirm; cancelAction = onCancel;
+                elements.confirmationModal.classList.remove('hidden');
+            }
+            function closeConfirmationModal() {
+                elements.confirmationModal.classList.add('hidden');
+                if (cancelAction) { cancelAction(); cancelAction = null; }
+            }
+            function confirmAndCloseModal() {
+                if (confirmAction) { confirmAction(); confirmAction = null; }
+                elements.confirmationModal.classList.add('hidden');
+            }
+
+            function openNotificationModal(title, text) {
+                elements.notificationTitle.textContent = title;
+                elements.notificationText.textContent = text;
+                elements.notificationModal.classList.remove('hidden');
+            }
+            function closeNotificationModal() {
+                elements.notificationModal.classList.add('hidden');
+            }
+
+            // --- Event Listeners ---
+            elements.addPlayerBtn.addEventListener('click', () => addPlayer(elements.playerNameInput.value));
+            elements.playerNameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addPlayer(elements.playerNameInput.value); });
+            elements.playerList.addEventListener('click', (e) => { if (e.target.closest('.remove-player-btn')) { removePlayer(e.target.closest('.remove-player-btn').dataset.name); } });
+            elements.importCsvBtn.addEventListener('change', handleImportCSV);
+            
+            elements.newGameBtn.addEventListener('click', startNewGame);
+            elements.fullResetBtn.addEventListener('click', () => openConfirmationModal('Full Application Reset?', 'This will permanently delete all players, stats, and game history.', executeFullReset));
+            elements.confirmationCancelBtn.addEventListener('click', closeConfirmationModal);
+            elements.confirmationConfirmBtn.addEventListener('click', confirmAndCloseModal);
+            elements.notificationOkBtn.addEventListener('click', closeNotificationModal);
+
+            elements.callNumberBtn.addEventListener('click', callRandomNumber);
+            elements.undoBtn.addEventListener('click', undoLastNumber);
+            elements.verifyBingoBtn.addEventListener('click', openVerifyModal);
+            elements.verifyBingoBtnSpeed.addEventListener('click', openVerifyModal);
+            elements.modalCancelBtn.addEventListener('click', closeVerifyModal);
+            elements.modalCheckBtn.addEventListener('click', checkBingo);
+            elements.winnerSelect.addEventListener('change', (e) => { elements.newPlayerNameInput.classList.toggle('hidden', e.target.value !== '__NEW__'); });
+            
+            // Settings Listeners
+            elements.settingsBtn.addEventListener('click', () => elements.settingsModal.classList.remove('hidden'));
+            elements.settingsCloseBtn.addEventListener('click', () => elements.settingsModal.classList.add('hidden'));
+            elements.manualModeToggle.addEventListener('change', (e) => toggleManualMode(e.target.checked));
+            elements.speedBingoToggle.addEventListener('change', (e) => toggleSpeedBingo(e.target.checked));
+            elements.speedBingoPlayPause.addEventListener('click', () => { state.settings.speedBingo.isPlaying ? pauseSpeedBingo() : playSpeedBingo(); });
+            elements.speedBingoIntervalSlider.addEventListener('input', (e) => {
+                const delay = parseInt(e.target.value) * 1000;
+                state.settings.speedBingo.delay = delay;
+                elements.speedBingoIntervalDisplay.textContent = `${e.target.value}s`;
+                if (state.settings.speedBingo.isPlaying) { pauseSpeedBingo(); playSpeedBingo(); }
+                saveState();
+            });
+            elements.themeSelector.addEventListener('click', (e) => { if (e.target.matches('.theme-btn')) { state.settings.theme = e.target.dataset.theme; applySettings(); saveState(); } });
+            elements.boardContainer.addEventListener('click', (e) => { if (state.settings.isManualMode && e.target.matches('.board-cell:not(.called)')) { callSpecificNumber(parseInt(e.target.dataset.number)); } });
+            elements.exportHistoryBtn.addEventListener('click', exportHistory);
+            elements.fullscreenBtn.addEventListener('click', toggleFullscreen);
+            
+            elements.gameVariantSelect.addEventListener('change', (e) => {
+                const newVariant = parseInt(e.target.value);
+                if (newVariant !== state.settings.gameVariant) {
+                    openConfirmationModal('Change Game Variant?', 'This will start a new game. Are you sure?',
+                        () => { 
+                            state.settings.gameVariant = newVariant; 
+                            elements.patternSelect.disabled = (newVariant !== 75);
+                            startNewGame(); 
+                        },
+                        () => { e.target.value = state.settings.gameVariant; }
+                    );
+                }
+            });
+
+            elements.patternSelect.addEventListener('change', (e) => {
+                state.settings.activePattern = e.target.value;
+                if (state.currentGame) {
+                    state.currentGame.pattern = e.target.value;
+                }
+                renderWinningPattern();
+                saveState();
+            });
+
+            elements.ttsToggle.addEventListener('change', (e) => toggleTTS(e.target.checked));
+            elements.voiceSelect.addEventListener('change', (e) => { state.settings.sounds.voice = e.target.value; saveState(); });
+            elements.playVoiceSampleBtn.addEventListener('click', playVoiceSample);
+            elements.victorySoundToggle.addEventListener('change', (e) => { state.settings.sounds.victory = e.target.checked; saveState(); });
+            
+            document.addEventListener('keydown', (e) => {
+                const isInputFocused = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT';
+
+                if (e.key === 'Escape') {
+                    if (!elements.settingsModal.classList.contains('hidden')) {
+                        elements.settingsModal.classList.add('hidden');
+                    } else if (!elements.verifyModal.classList.contains('hidden')) {
+                        closeVerifyModal();
+                    } else if (!elements.confirmationModal.classList.contains('hidden')) {
+                        closeConfirmationModal();
+                    } else if (!elements.notificationModal.classList.contains('hidden')) {
+                        closeNotificationModal();
+                    } else if (state.settings.speedBingo.isActive && state.settings.speedBingo.isPlaying) {
+                        e.preventDefault();
+                        pauseSpeedBingo();
+                    }
+                } else if ((e.key === ' ' || e.code === 'Space') && !isInputFocused) {
+                    e.preventDefault();
+                    if (!elements.callNumberBtn.disabled) {
+                        elements.callNumberBtn.click();
+                    }
+                } else if (e.key === 'F11') {
+                    e.preventDefault();
+                    toggleFullscreen();
+                }
+            });
+
+            // --- Initialization ---
+            speechSynthesis.onvoiceschanged = populateVoices;
+            populatePatternSelector();
+            loadState();
+            populateVoices();
+        });
+    </script>
+</body>
+</html>
