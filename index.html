@@ -1023,7 +1023,7 @@
             }
 
             function exportHistory() {
-                let textContent = "Rowlett Group's Bingo Night - Game History\n";
+                let textContent = "My Bingo Night - Game History\n";
                 textContent += `Exported on: ${new Date().toLocaleString()}\n\n`;
                 const allGames = [...state.gameHistory];
                 if (state.currentGame && state.currentGame.calledNumbers.size > 0) { allGames.push(state.currentGame); }
@@ -1172,6 +1172,7 @@
     </script>
 </body>
 </html>
+
 
 
 
