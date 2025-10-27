@@ -1,0 +1,352 @@
+# robots.txt for mybingo.club
+# Last updated: 2025-10-27
+#
+# This robots.txt file allows all search engines and AI crawlers
+# to index and crawl our bingo gaming website
+
+# ==============================================================
+# GENERAL RULES FOR ALL BOTS
+# ==============================================================
+User-agent: *
+Allow: /
+Crawl-delay: 1
+
+# ==============================================================
+# MAJOR SEARCH ENGINES
+# ==============================================================
+
+# Google
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Googlebot-Mobile
+Allow: /
+
+User-agent: Googlebot-Video
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Google-InspectionTool
+Allow: /
+
+# Bing
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 0
+
+User-agent: BingPreview
+Allow: /
+
+User-agent: msnbot
+Allow: /
+
+User-agent: msnbot-media
+Allow: /
+
+# Yahoo
+User-agent: Slurp
+Allow: /
+Crawl-delay: 1
+
+# Baidu (China)
+User-agent: Baiduspider
+Allow: /
+Crawl-delay: 1
+
+User-agent: Baiduspider-image
+Allow: /
+
+User-agent: Baiduspider-video
+Allow: /
+
+User-agent: Baiduspider-mobile
+Allow: /
+
+# Yandex (Russia)
+User-agent: YandexBot
+Allow: /
+Crawl-delay: 1
+
+User-agent: YandexImages
+Allow: /
+
+User-agent: YandexVideo
+Allow: /
+
+User-agent: YandexMobile
+Allow: /
+
+# DuckDuckGo
+User-agent: DuckDuckBot
+Allow: /
+Crawl-delay: 1
+
+# ==============================================================
+# AI CRAWLERS & LLM TRAINING BOTS
+# ==============================================================
+
+# OpenAI (ChatGPT)
+User-agent: GPTBot
+Allow: /
+Crawl-delay: 1
+
+User-agent: ChatGPT-User
+Allow: /
+
+# Anthropic (Claude)
+User-agent: anthropic-ai
+Allow: /
+Crawl-delay: 1
+
+User-agent: Claude-Web
+Allow: /
+
+# Common Crawl
+User-agent: CCBot
+Allow: /
+Crawl-delay: 1
+
+# Google AI/Bard
+User-agent: Google-Extended
+Allow: /
+
+# Perplexity AI
+User-agent: PerplexityBot
+Allow: /
+Crawl-delay: 1
+
+# Cohere
+User-agent: cohere-ai
+Allow: /
+Crawl-delay: 1
+
+# Meta/Facebook AI
+User-agent: FacebookBot
+Allow: /
+Crawl-delay: 1
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Meta-ExternalAgent
+Allow: /
+
+User-agent: Meta-ExternalFetcher
+Allow: /
+
+# Apple
+User-agent: Applebot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Applebot-Extended
+Allow: /
+
+# Amazon
+User-agent: Amazonbot
+Allow: /
+Crawl-delay: 1
+
+# ==============================================================
+# SPECIALIZED CRAWLERS
+# ==============================================================
+
+# Twitter/X
+User-agent: Twitterbot
+Allow: /
+
+# LinkedIn
+User-agent: LinkedInBot
+Allow: /
+
+# Pinterest
+User-agent: Pinterestbot
+Allow: /
+
+# Telegram
+User-agent: TelegramBot
+Allow: /
+
+# WhatsApp
+User-agent: WhatsApp
+Allow: /
+
+# Slack
+User-agent: Slackbot
+Allow: /
+
+User-agent: Slackbot-LinkExpanding
+Allow: /
+
+# Discord
+User-agent: Discordbot
+Allow: /
+
+# ==============================================================
+# OTHER SEARCH ENGINES & DIRECTORIES
+# ==============================================================
+
+# Sogou (China)
+User-agent: Sogou web spider
+Allow: /
+Crawl-delay: 1
+
+# Naver (Korea)
+User-agent: Yeti
+Allow: /
+Crawl-delay: 1
+
+# Archive.org
+User-agent: ia_archiver
+Allow: /
+Crawl-delay: 2
+
+# Alexa/Amazon
+User-agent: ia_archiver-web.archive.org
+Allow: /
+
+# Ahrefs SEO
+User-agent: AhrefsBot
+Allow: /
+Crawl-delay: 2
+
+# SEMrush
+User-agent: SemrushBot
+Allow: /
+Crawl-delay: 2
+
+# Moz
+User-agent: rogerbot
+Allow: /
+Crawl-delay: 2
+
+User-agent: dotbot
+Allow: /
+
+# Majestic SEO
+User-agent: MJ12bot
+Allow: /
+Crawl-delay: 2
+
+# Screaming Frog
+User-agent: Screaming Frog SEO Spider
+Allow: /
+
+# ==============================================================
+# NEWS & MEDIA CRAWLERS
+# ==============================================================
+
+# Google News
+User-agent: Mediapartners-Google
+Allow: /
+
+User-agent: AdsBot-Google
+Allow: /
+
+# Apple News
+User-agent: AppleNewsBot
+Allow: /
+
+# Bing News
+User-agent: adidxbot
+Allow: /
+
+# ==============================================================
+# ACADEMIC & RESEARCH CRAWLERS
+# ==============================================================
+
+# Internet Archive
+User-agent: archive.org_bot
+Allow: /
+Crawl-delay: 2
+
+# Semantic Scholar
+User-agent: SemanticScholarBot
+Allow: /
+Crawl-delay: 2
+
+# ==============================================================
+# MONITORING & ANALYTICS
+# ==============================================================
+
+# Uptime monitoring
+User-agent: Pingdom
+Allow: /
+
+User-agent: StatusCake
+Allow: /
+
+User-agent: UptimeRobot
+Allow: /
+
+# PageSpeed
+User-agent: Google-PageSpeed
+Allow: /
+
+User-agent: Google-Site-Verification
+Allow: /
+
+# ==============================================================
+# ADDITIONAL AI & ML CRAWLERS
+# ==============================================================
+
+# YouBot (You.com)
+User-agent: YouBot
+Allow: /
+Crawl-delay: 1
+
+# Diffbot
+User-agent: Diffbot
+Allow: /
+Crawl-delay: 1
+
+# Bytedance/TikTok
+User-agent: Bytespider
+Allow: /
+Crawl-delay: 1
+
+# Cliqz
+User-agent: Cliqzbot
+Allow: /
+
+# Qwant
+User-agent: Qwantify
+Allow: /
+Crawl-delay: 1
+
+# Mojeek
+User-agent: MojeekBot
+Allow: /
+Crawl-delay: 1
+
+# Brave Search
+User-agent: Brave-Search
+Allow: /
+Crawl-delay: 1
+
+# ==============================================================
+# SITEMAPS
+# ==============================================================
+
+# Primary sitemap (HTTPS without www)
+Sitemap: https://mybingo.club/sitemap.xml
+
+# Alternative URLs
+Sitemap: https://www.mybingo.club/sitemap.xml
+Sitemap: http://mybingo.club/sitemap.xml
+Sitemap: http://www.mybingo.club/sitemap.xml
+
+# ==============================================================
+# ADDITIONAL INFORMATION
+# ==============================================================
+
+# Website: https://mybingo.club
+# Contact: iinfo@manpasand.com
+# Description: Free online bingo caller and host for parties and events
+# Features: 75-ball bingo, 90-ball bingo, speed bingo, player tracking
